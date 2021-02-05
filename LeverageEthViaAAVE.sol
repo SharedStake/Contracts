@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
-
+/**
+* Kovan example: https://kovan.etherscan.io/address/0xbb7A11900FF78E91D3A8C4eefe3069C4Feaf829C
+*/
 /**
  * EthDerivativeProxy
  * **This contract is not general purpose and needs a factory or manual user deploy per user **
@@ -174,7 +176,7 @@ contract EthDerivativeProxy is Ownable, PriceConsumerV3 {
         require(minHealthFactor > 100, "healthFactor too low, needs to be above 1 * 100");
 
         uint loops = 0;
-        while (healthFactor > minHealthFactor/100) {
+        while (healthFactor > SafeMath.div(minHealthFactor,100) && loops < 10) {
             amount = borrowDAIAndSwapToETH();
             healthFactor = getHealthFactor(address(this));
             loops = loops + 1;
@@ -188,6 +190,7 @@ contract EthDerivativeProxy is Ownable, PriceConsumerV3 {
     function longEth(uint amount) public payable onlyOwner returns (uint) {
         depositETH(amount);
         uint swapReturns = borrowDAIAndSwapToETH();
+        approveDebtIncuree(msg.sender, IERC20(AWETH_CONTRACT).balanceOf(address(this)), ASD_DAI);
         return swapReturns;
     }
 
@@ -221,21 +224,8 @@ contract EthDerivativeProxy is Ownable, PriceConsumerV3 {
     }
 
     function borrowETH(address depositOnBehalfOf) public onlyOwner returns (uint256) {
-        uint256 totalCollateralETH;
-        uint256 totalDebtETH;
-        uint256 availableBorrowsETH;
-        uint256 currentLiquidationThreshold;
-        uint256 ltv;
-        uint256 healthFactor;
-
-      (
-        totalCollateralETH,
-        totalDebtETH,
-        availableBorrowsETH,
-        currentLiquidationThreshold,
-        ltv,
-        healthFactor
-       ) = lendingPool.getUserAccountData(depositOnBehalfOf);
+        uint256 availableBorrowsETH = getAvailableBorrowsETH(depositOnBehalfOf);
+        uint256 healthFactor = getHealthFactor(depositOnBehalfOf);
 
         require(healthFactor > 1, "healthFactor too low");
         uint256 toBorrow = availableBorrowsETH / 2;
@@ -288,7 +278,7 @@ contract EthDerivativeProxy is Ownable, PriceConsumerV3 {
         uint256 healthFactor = getHealthFactor(depositOnBehalfOf);
         require(healthFactor > 1, "healthFactor too low");
 
-        uint256 toBorrow = SafeMath.div(SafeMath.mul(availableBorrowsETH, price), 2);
+        uint256 toBorrow = SafeMath.div(SafeMath.mul(availableBorrowsETH, SafeMath.div(price, 1e8)), 2);
 
        // function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf)
        // interestRateMode => 1 = stable, 2 = variable
@@ -312,6 +302,10 @@ contract EthDerivativeProxy is Ownable, PriceConsumerV3 {
     // Withdraw all of a collateral as the underlying asset, if no outstanding loans delegated
     function withdrawCollateral(address asset, uint256 amount) public onlyOwner {
         lendingPool.withdraw(asset, amount, address(this));
+    }
+    
+    function withdrawETH() public payable onlyOwner {
+        msg.sender.call{ value: address(this).balance }("");
     }
 
     /*
