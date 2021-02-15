@@ -1,14 +1,13 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity 0.6.9;
 
-// SmartTimeLock forked from badger.finance
-
 import {TokenTimelock} from "https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/token/ERC20/TokenTimelock.sol";
 import {IERC20} from "https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ReentrancyGuard} from "https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import {Executor} from "https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/contracts/badger-timelock/Executor.sol";
 
+import {Ownable} from "https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/access/Ownable.sol";
 /* 
   A token timelock that is capable of interacting with other smart contracts.
   This allows the beneficiary to participate in on-chain goverance processes, despite having locked tokens.
@@ -17,7 +16,7 @@ import {Executor} from "https://raw.githubusercontent.com/sharedStake-dev/badger
   This is intended to allow the token holder to stake their tokens in approved mechanisms.
 */
 
-contract SmartTimelock is TokenTimelock, Executor, ReentrancyGuard {
+contract SmartTimelock is TokenTimelock, Executor, ReentrancyGuard, Ownable {
     address internal _governor;
     mapping(address => bool) internal _transferAllowed;
 
@@ -36,11 +35,6 @@ contract SmartTimelock is TokenTimelock, Executor, ReentrancyGuard {
     event ClaimToken(IERC20 token, uint256 amount);
     event ClaimEther(uint256 amount);
 
-    modifier onlyBeneficiary() {
-        require(msg.sender == beneficiary(), "smart-timelock/only-beneficiary");
-        _;
-    }
-
     modifier onlyGovernor() {
         require(msg.sender == _governor, "smart-timelock/only-governor");
         _;
@@ -58,7 +52,7 @@ contract SmartTimelock is TokenTimelock, Executor, ReentrancyGuard {
         address to,
         uint256 value,
         bytes calldata data
-    ) external payable onlyBeneficiary() nonReentrant() returns (bool success) {
+    ) external payable onlyOwner() nonReentrant() returns (bool success) {
         uint256 preAmount = token().balanceOf(address(this));
 
         success = execute(to, value, data, gasleft());
@@ -90,7 +84,7 @@ contract SmartTimelock is TokenTimelock, Executor, ReentrancyGuard {
      */
     function claimToken(IERC20 tokenToClaim)
         external
-        onlyBeneficiary()
+        onlyOwner()
         nonReentrant()
     {
         require(
@@ -116,7 +110,7 @@ contract SmartTimelock is TokenTimelock, Executor, ReentrancyGuard {
     /**
      * @notice Claim Ether in contract.
      */
-    function claimEther() external onlyBeneficiary() nonReentrant() {
+    function claimEther() external onlyOwner() nonReentrant() {
         uint256 preAmount = token().balanceOf(address(this));
 
         uint256 etherToTransfer = address(this).balance;
