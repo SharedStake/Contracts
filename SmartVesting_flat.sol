@@ -1,78 +1,5 @@
-/**
- * SharedStake vesting contract
- * Flattened for Etherscan verification
- * Fork of badger SmartVesting
- * Source : https://github.com/SharedStake/Contracts/blob/ae8d33882d52d801a3a6002677fe02659392827f/SmartVesting.sol
- */
-
-// File: https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts-upgradeable/proxy/Initializable.sol
-
-// SPDX-License-Identifier: MIT
-
-pragma solidity >=0.4.24 <0.7.0;
-
-
-/**
- * @dev This is a base contract to aid in writing upgradeable contracts, or any kind of contract that will be deployed
- * behind a proxy. Since a proxied contract can't have a constructor, it's common to move constructor logic to an
- * external initializer function, usually called `initialize`. It then becomes necessary to protect this initializer
- * function so it can only be called once. The {initializer} modifier provided by this contract will have this effect.
- * 
- * TIP: To avoid leaving the proxy in an uninitialized state, the initializer function should be called as early as
- * possible by providing the encoded function call as the `_data` argument to {UpgradeableProxy-constructor}.
- * 
- * CAUTION: When used with inheritance, manual care must be taken to not invoke a parent initializer twice, or to ensure
- * that all initializers are idempotent. This is not verified automatically as constructors are by Solidity.
- */
-abstract contract Initializable {
-
-    /**
-     * @dev Indicates that the contract has been initialized.
-     */
-    bool private _initialized;
-
-    /**
-     * @dev Indicates that the contract is in the process of being initialized.
-     */
-    bool private _initializing;
-
-    /**
-     * @dev Modifier to protect an initializer function from being invoked twice.
-     */
-    modifier initializer() {
-        require(_initializing || _isConstructor() || !_initialized, "Initializable: contract is already initialized");
-
-        bool isTopLevelCall = !_initializing;
-        if (isTopLevelCall) {
-            _initializing = true;
-            _initialized = true;
-        }
-
-        _;
-
-        if (isTopLevelCall) {
-            _initializing = false;
-        }
-    }
-
-    /// @dev Returns true if and only if the function is running in the constructor
-    function _isConstructor() private view returns (bool) {
-        // extcodesize checks the size of the code stored in an address, and
-        // address returns the current address. Since the code is still not
-        // deployed when running a constructor, any checks on its code size will
-        // yield zero, making it an effective way to detect if a contract is
-        // under construction or not.
-        address self = address(this);
-        uint256 cs;
-        // solhint-disable-next-line no-inline-assembly
-        assembly { cs := extcodesize(self) }
-        return cs == 0;
-    }
-}
 
 // File: https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/GSN/Context.sol
-
-// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.6.0;
 
@@ -99,7 +26,6 @@ abstract contract Context {
 
 // File: https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/access/Ownable.sol
 
-// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.6.0;
 
@@ -169,7 +95,6 @@ contract Ownable is Context {
 
 // File: https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/utils/Address.sol
 
-// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.6.2;
 
@@ -313,7 +238,6 @@ library Address {
 
 // File: https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/math/SafeMath.sol
 
-// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.6.0;
 
@@ -475,7 +399,6 @@ library SafeMath {
 
 // File: https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/token/ERC20/SafeERC20.sol
 
-// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.6.0;
 
@@ -552,7 +475,6 @@ library SafeERC20 {
 
 // File: https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/utils/ReentrancyGuard.sol
 
-// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.6.0;
 
@@ -617,7 +539,6 @@ contract ReentrancyGuard {
 
 // File: https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/token/ERC20/IERC20.sol
 
-// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.6.0;
 
@@ -742,7 +663,6 @@ contract Executor {
 
 // File: browser/smartVesting.sol
 
-//SPDX-License-Identifier: Unlicense
 pragma solidity 0.6.9;
 
 /**
@@ -756,14 +676,13 @@ pragma solidity 0.6.9;
 
 
 
-
 /**
  * @title SingleTokenVesting
  * @dev A token holder contract that can release its token balance gradually like a
  * typical vesting scheme, with a cliff and vesting period. Optionally revocable by the
  * owner. Only tracks vesting for a single token, rather than all ERC20s.
  */
-abstract contract SingleTokenVestingNonRevocable is Ownable, Initializable {
+abstract contract SingleTokenVestingNonRevocable is Ownable {
     // The vesting schedule is time-based (i.e. using block timestamps as opposed to e.g. block numbers), and is
     // therefore sensitive to timestamp manipulation (which is something miners can do, to a certain degree). Therefore,
     // it is recommended to avoid using short time durations (less than a minute). Typical vesting schemes, with a
@@ -776,7 +695,8 @@ abstract contract SingleTokenVestingNonRevocable is Ownable, Initializable {
     event TokensReleased(address token, uint256 amount);
 
     IERC20 internal _token;
-    // beneficiary of tokens after they are released is the owner
+    // beneficiary of tokens after they are released
+    address private _beneficiary;
 
     // Durations and timestamps are expressed in UNIX time, the same units as block.timestamp.
     uint256 private _cliff;
@@ -790,17 +710,20 @@ abstract contract SingleTokenVestingNonRevocable is Ownable, Initializable {
      * beneficiary, gradually in a linear fashion until start + duration. By then all
      * of the balance will have vested.
      * @param token address of the token to vest
+     * @param beneficiary address of the beneficiary to whom vested tokens are transferred
      * @param cliffDuration duration in seconds of the cliff in which tokens will begin to vest
      * @param start the time (as Unix time) at which point vesting starts
      * @param duration duration in seconds of the period in which the tokens will vest
      */
     constructor(
         IERC20 token,
+        address beneficiary,
         uint256 start,
         uint256 cliffDuration,
         uint256 duration
-    ) public {
+        ) public {
         require(address(token) != address(0), "TokenVesting: token is the zero address");
+        require(beneficiary != address(0), "TokenVesting: beneficiary is the zero address");
         // solhint-disable-next-line max-line-length
         require(cliffDuration <= duration, "TokenVesting: cliff is longer than duration");
         require(duration > 0, "TokenVesting: duration is 0");
@@ -808,6 +731,7 @@ abstract contract SingleTokenVestingNonRevocable is Ownable, Initializable {
         require(start.add(duration) > block.timestamp, "TokenVesting: final time is before current time");
 
         _token = token;
+        _beneficiary = beneficiary;
         _duration = duration;
         _cliff = start.add(cliffDuration);
         _start = start;
@@ -818,6 +742,13 @@ abstract contract SingleTokenVestingNonRevocable is Ownable, Initializable {
      */
     function token() public view returns (IERC20) {
         return _token;
+    }
+
+    /**
+     * @return the beneficiary of the tokens.
+     */
+    function beneficiary() public view returns (address) {
+        return _beneficiary;
     }
 
     /**
@@ -849,6 +780,13 @@ abstract contract SingleTokenVestingNonRevocable is Ownable, Initializable {
     }
 
     /**
+     * @notice Allows the beneficiary to be changed for future multi sig deploys or team structure changes
+     */
+    function changeBeneficiary(address newBeneficiary) external onlyOwner() {
+        _beneficiary = newBeneficiary;
+    }
+
+    /**
      * @notice Transfers vested tokens to beneficiary.
      */
     function release() public {
@@ -858,7 +796,7 @@ abstract contract SingleTokenVestingNonRevocable is Ownable, Initializable {
 
         _released = _released.add(unreleased);
 
-        _token.safeTransfer(owner(), unreleased);
+        _token.safeTransfer(_beneficiary, unreleased);
 
         emit TokensReleased(address(_token), unreleased);
     }
@@ -908,11 +846,12 @@ contract SmartVesting is SingleTokenVestingNonRevocable, Executor, ReentrancyGua
 
     constructor(
         IERC20 token,
+        address beneficiary,
         address governor,
         uint256 start,
         uint256 cliffDuration,
         uint256 duration
-    ) SingleTokenVestingNonRevocable(token, start, cliffDuration, duration) public {
+    ) public SingleTokenVestingNonRevocable(token, beneficiary, start, cliffDuration, duration) {
         _governor = governor;
     }
 
@@ -921,6 +860,11 @@ contract SmartVesting is SingleTokenVestingNonRevocable, Executor, ReentrancyGua
     event RevokeTransfer(address to);
     event ClaimToken(IERC20 token, uint256 amount);
     event ClaimEther(uint256 amount);
+
+    modifier onlyBeneficiary() {
+        require(msg.sender == beneficiary(), "smart-timelock/only-beneficiary");
+        _;
+    }
 
     modifier onlyGovernor() {
         require(msg.sender == _governor, "smart-timelock/only-governor");
@@ -939,7 +883,7 @@ contract SmartVesting is SingleTokenVestingNonRevocable, Executor, ReentrancyGua
         address to,
         uint256 value,
         bytes calldata data
-    ) external payable onlyOwner() nonReentrant() returns (bool success) {
+    ) external payable onlyBeneficiary() nonReentrant() returns (bool success) {
         uint256 preAmount = token().balanceOf(address(this));
 
         success = execute(to, value, data, gasleft());
@@ -966,14 +910,14 @@ contract SmartVesting is SingleTokenVestingNonRevocable, Executor, ReentrancyGua
      * @notice Claim ERC20-compliant tokens other than locked token.
      * @param tokenToClaim Token to claim balance of.
      */
-    function claimToken(IERC20 tokenToClaim) external onlyOwner() nonReentrant() {
+    function claimToken(IERC20 tokenToClaim) external onlyBeneficiary() nonReentrant() {
         require(address(tokenToClaim) != address(token()), "smart-timelock/no-locked-token-claim");
         uint256 preAmount = token().balanceOf(address(this));
 
         uint256 claimableTokenAmount = tokenToClaim.balanceOf(address(this));
         require(claimableTokenAmount > 0, "smart-timelock/no-token-balance-to-claim");
 
-        tokenToClaim.transfer(owner(), claimableTokenAmount);
+        tokenToClaim.transfer(beneficiary(), claimableTokenAmount);
 
         uint256 postAmount = token().balanceOf(address(this));
         require(postAmount >= preAmount, "smart-timelock/locked-balance-check");
@@ -984,13 +928,13 @@ contract SmartVesting is SingleTokenVestingNonRevocable, Executor, ReentrancyGua
     /**
      * @notice Claim Ether in contract.
      */
-    function claimEther() external onlyOwner() nonReentrant() {
+    function claimEther() external onlyBeneficiary() nonReentrant() {
         uint256 preAmount = token().balanceOf(address(this));
 
         uint256 etherToTransfer = address(this).balance;
         require(etherToTransfer > 0, "smart-timelock/no-ether-balance-to-claim");
 
-        payable(owner()).transfer(etherToTransfer);
+        payable(beneficiary()).transfer(etherToTransfer);
 
         uint256 postAmount = token().balanceOf(address(this));
         require(postAmount >= preAmount, "smart-timelock/locked-balance-check");
