@@ -1,13 +1,14 @@
-//SPDX-License-Identifier: Unlicense
 pragma solidity 0.6.9;
 
 import {TokenTimelock} from "https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/token/ERC20/TokenTimelock.sol";
 import {IERC20} from "https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ReentrancyGuard} from "https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Ownable} from "https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/access/Ownable.sol";
 
 import {Executor} from "https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/contracts/badger-timelock/Executor.sol";
 
-import {Ownable} from "https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/access/Ownable.sol";
+// SmartTimeLock forked from badger.finance
+
 /* 
   A token timelock that is capable of interacting with other smart contracts.
   This allows the beneficiary to participate in on-chain goverance processes, despite having locked tokens.
