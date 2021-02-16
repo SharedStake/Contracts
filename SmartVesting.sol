@@ -1,6 +1,4 @@
-//SPDX-License-Identifier: Unlicense
 pragma solidity 0.6.9;
-// pragma solidity 0.8.1;
 
 /**
  * SharedStake vesting contract
@@ -34,8 +32,7 @@ abstract contract SingleTokenVestingNonRevocable is Ownable, Initializable {
     event TokensReleased(address token, uint256 amount);
 
     IERC20 internal _token;
-    // beneficiary of tokens after they are released
-    address private _beneficiary;
+    // beneficiary of tokens after they are released is the owner
 
     // Durations and timestamps are expressed in UNIX time, the same units as block.timestamp.
     uint256 private _cliff;
@@ -49,20 +46,17 @@ abstract contract SingleTokenVestingNonRevocable is Ownable, Initializable {
      * beneficiary, gradually in a linear fashion until start + duration. By then all
      * of the balance will have vested.
      * @param token address of the token to vest
-     * @param beneficiary address of the beneficiary to whom vested tokens are transferred
      * @param cliffDuration duration in seconds of the cliff in which tokens will begin to vest
      * @param start the time (as Unix time) at which point vesting starts
      * @param duration duration in seconds of the period in which the tokens will vest
      */
-    function __SingleTokenVestingNonRevocable_init(
+    constructor(
         IERC20 token,
-        address beneficiary,
         uint256 start,
         uint256 cliffDuration,
         uint256 duration
-        ) public initializer {
+    ) public {
         require(address(token) != address(0), "TokenVesting: token is the zero address");
-        require(beneficiary != address(0), "TokenVesting: beneficiary is the zero address");
         // solhint-disable-next-line max-line-length
         require(cliffDuration <= duration, "TokenVesting: cliff is longer than duration");
         require(duration > 0, "TokenVesting: duration is 0");
@@ -70,26 +64,16 @@ abstract contract SingleTokenVestingNonRevocable is Ownable, Initializable {
         require(start.add(duration) > block.timestamp, "TokenVesting: final time is before current time");
 
         _token = token;
-        _beneficiary = beneficiary;
         _duration = duration;
         _cliff = start.add(cliffDuration);
         _start = start;
     }
-    
-    constructor() public {}
 
     /**
      * @return the token being held.
      */
     function token() public view returns (IERC20) {
         return _token;
-    }
-
-    /**
-     * @return the beneficiary of the tokens.
-     */
-    function beneficiary() public view returns (address) {
-        return _beneficiary;
     }
 
     /**
@@ -130,7 +114,7 @@ abstract contract SingleTokenVestingNonRevocable is Ownable, Initializable {
 
         _released = _released.add(unreleased);
 
-        _token.safeTransfer(_beneficiary, unreleased);
+        _token.safeTransfer(owner(), unreleased);
 
         emit TokensReleased(address(_token), unreleased);
     }
@@ -180,13 +164,11 @@ contract SmartVesting is SingleTokenVestingNonRevocable, Executor, ReentrancyGua
 
     constructor(
         IERC20 token,
-        address beneficiary,
         address governor,
         uint256 start,
         uint256 cliffDuration,
         uint256 duration
-    ) public {
-        __SingleTokenVestingNonRevocable_init(token, beneficiary, start, cliffDuration, duration);
+    ) SingleTokenVestingNonRevocable(token, start, cliffDuration, duration) public {
         _governor = governor;
     }
 
@@ -195,11 +177,6 @@ contract SmartVesting is SingleTokenVestingNonRevocable, Executor, ReentrancyGua
     event RevokeTransfer(address to);
     event ClaimToken(IERC20 token, uint256 amount);
     event ClaimEther(uint256 amount);
-
-    modifier onlyBeneficiary() {
-        require(msg.sender == beneficiary(), "smart-timelock/only-beneficiary");
-        _;
-    }
 
     modifier onlyGovernor() {
         require(msg.sender == _governor, "smart-timelock/only-governor");
@@ -218,7 +195,7 @@ contract SmartVesting is SingleTokenVestingNonRevocable, Executor, ReentrancyGua
         address to,
         uint256 value,
         bytes calldata data
-    ) external payable onlyBeneficiary() nonReentrant() returns (bool success) {
+    ) external payable onlyOwner() nonReentrant() returns (bool success) {
         uint256 preAmount = token().balanceOf(address(this));
 
         success = execute(to, value, data, gasleft());
@@ -245,14 +222,14 @@ contract SmartVesting is SingleTokenVestingNonRevocable, Executor, ReentrancyGua
      * @notice Claim ERC20-compliant tokens other than locked token.
      * @param tokenToClaim Token to claim balance of.
      */
-    function claimToken(IERC20 tokenToClaim) external onlyBeneficiary() nonReentrant() {
+    function claimToken(IERC20 tokenToClaim) external onlyOwner() nonReentrant() {
         require(address(tokenToClaim) != address(token()), "smart-timelock/no-locked-token-claim");
         uint256 preAmount = token().balanceOf(address(this));
 
         uint256 claimableTokenAmount = tokenToClaim.balanceOf(address(this));
         require(claimableTokenAmount > 0, "smart-timelock/no-token-balance-to-claim");
 
-        tokenToClaim.transfer(beneficiary(), claimableTokenAmount);
+        tokenToClaim.transfer(owner(), claimableTokenAmount);
 
         uint256 postAmount = token().balanceOf(address(this));
         require(postAmount >= preAmount, "smart-timelock/locked-balance-check");
@@ -263,13 +240,13 @@ contract SmartVesting is SingleTokenVestingNonRevocable, Executor, ReentrancyGua
     /**
      * @notice Claim Ether in contract.
      */
-    function claimEther() external onlyBeneficiary() nonReentrant() {
+    function claimEther() external onlyOwner() nonReentrant() {
         uint256 preAmount = token().balanceOf(address(this));
 
         uint256 etherToTransfer = address(this).balance;
         require(etherToTransfer > 0, "smart-timelock/no-ether-balance-to-claim");
 
-        payable(beneficiary()).transfer(etherToTransfer);
+        payable(owner()).transfer(etherToTransfer);
 
         uint256 postAmount = token().balanceOf(address(this));
         require(postAmount >= preAmount, "smart-timelock/locked-balance-check");
