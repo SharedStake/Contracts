@@ -45,6 +45,11 @@ You can stake your SGT, [SGT-ETH uniswap LP](https://info.uniswap.org/pair/0x3d0
 
 > vEth2 :[0xA919D7a5fb7ad4ab6F2aae82b6F39d181A027d35](https://etherscan.io/address/0xA919D7a5fb7ad4ab6F2aae82b6F39d181A027d35)
 
+## Timelock
+
+Timelock contract that locks up 40% of SGT token supply for 2 years
+
+> Address: [0xa23179be88887804f319c047e88fdd4dd4867ef5](https://etherscan.io/address/0xa23179be88887804f319c047e88fdd4dd4867ef5)
 
 # Development
 You can use Remix or any other preffered setup.
