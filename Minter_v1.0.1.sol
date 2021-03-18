@@ -540,7 +540,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
         );
         require(
             address(this).balance > amount,
-            "Eth2Staker:withdraw:not enough balancce in contract"
+            "Eth2Staker:withdraw:Not enough balance in contract"
         );
         require(
             BETHToken.balanceOf(msg.sender) >= amount,
@@ -608,6 +608,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
         onlyOwner
         nonReentrant
     {
+        require(minter_ != address(0), "Minter cannot be zero address");
         BETHToken.setMinter(minter_);
 
         uint256 amount = address(this).balance;
