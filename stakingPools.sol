@@ -884,7 +884,7 @@ contract StakingRewardsFactory is Ownable {
     // In case of issues or incorrect calls or errors
     function refund(uint256 amount, address refundAddress) public onlyOwner {
         require(
-            IERC20(rewardsToken).transfer(refundAddress, amount),
+            IERC20(rewardsToken).safeTransfer(refundAddress, amount),
             "StakingRewardsFactory::notifyRewardAmount: transfer failed"
         );
     }
