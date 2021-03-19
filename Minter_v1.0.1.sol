@@ -1,5 +1,7 @@
 pragma solidity ^0.7.5;
 
+import {Address} from "@openzeppelin/contracts/utils/Address.sol"
+
 /**
  * @dev Wrappers over Solidity's arithmetic operations with added overflow
  * checks.
@@ -551,7 +553,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
         adminFeeTotal = adminFeeTotal.sub(valBeforeAdmin.sub(amount));
         BETHToken.burn(msg.sender, amount);
         address payable sender = msg.sender;
-        sender.transfer(valBeforeAdmin);
+        sender.sendValue(valBeforeAdmin);
     }
 
     // migration function to accept old monies and copy over state
@@ -636,7 +638,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
             amount <= adminFeeTotal,
             "Eth2Staker:withdrawAdminFee: More than adminFeeTotal cannot be withdrawn"
         );
-        sender.transfer(amount);
+        sender.sendValue(amount);
         adminFeeTotal = adminFeeTotal.sub(amount);
     }
 }
