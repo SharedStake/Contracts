@@ -577,13 +577,15 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
             "Eth2Staker:depositToEth2: Not enough balance"
         ); //need at least 32 ETH
 
+        validatorsCreated = validatorsCreated.add(1);
+
         depositContract.deposit{value: amount}(
             pubkey,
             withdrawal_credentials,
             signature,
             deposit_data_root
         );
-        validatorsCreated = validatorsCreated.add(1);
+        
     }
 
     function setNumValidators(uint256 _numValidators) external onlyOwner {
@@ -638,7 +640,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
             amount <= adminFeeTotal,
             "Eth2Staker:withdrawAdminFee: More than adminFeeTotal cannot be withdrawn"
         );
-        sender.sendValue(amount);
         adminFeeTotal = adminFeeTotal.sub(amount);
+        sender.sendValue(amount);
     }
 }
