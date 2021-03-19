@@ -589,6 +589,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
     }
 
     function setNumValidators(uint256 _numValidators) external onlyOwner {
+        require(_numValidators != 0, "Minimum 1 validator");
         numValidators = _numValidators;
     }
 
