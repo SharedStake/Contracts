@@ -87,7 +87,7 @@ abstract contract TokenTimelock is Ownable {
 */
 
 contract SmartTimelock is TokenTimelock, Executor, ReentrancyGuard {
-    address internal _governor;
+    address internal immutable _governor;
     mapping(address => bool) internal _transferAllowed;
 
     constructor(
