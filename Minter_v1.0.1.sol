@@ -432,7 +432,7 @@ contract ReentrancyGuard {
     }
 }
 
-contract SharedDeposit is Pausable, ReentrancyGuard, Address {
+contract SharedDeposit is Pausable, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeMath for uint256;
     /* ========== STATE VARIABLES ========== */
@@ -467,12 +467,14 @@ contract SharedDeposit is Pausable, ReentrancyGuard, Address {
     constructor(
         uint256 _numValidators,
         uint256 _adminFee,
+        uint256 _curValidatorShares,
         address _BETHTokenAddress
     ) public {
         depositContract = IDepositContract(mainnetDepositContractAddress);
 
         adminFee = _adminFee; // Admin and infra fees
         numValidators = _numValidators; // The number of validators to create in this lot. Enough ETH for this many are needed before transfer to eth2
+        curValidatorShares = _curValidatorShares;
 
         // Eth in the buffer cannot be withdrawn by an admin, only by burning the underlying token
         buffer = uint256(10).mul(1e18); // roughly equal to 10 eth.
@@ -578,18 +580,23 @@ contract SharedDeposit is Pausable, ReentrancyGuard, Address {
         adminFeeTotal = adminFeeTotal.sub(valBeforeAdmin.sub(amount));
         BETHToken.burn(msg.sender, amount);
         address payable sender = msg.sender;
-        sender.sendValue(valBeforeAdmin);
+        Address.sendValue(sender, valBeforeAdmin);
     }
 
     // migration function to accept old monies and copy over state
     // users should not use this as it just donates the money without minting veth or tracking donations
     function donate(uint256 shares) external payable nonReentrant {
-        curValidatorShares = shares;
+        this.migrateShares(shares);
     }
 
     // OWNER ONLY FUNCTIONS
 
-    // This needs to be called once per validator
+    // Used to migrate state over to new contract
+    function migrateShares(uint256 shares) external payable onlyOwner nonReentrant {
+        curValidatorShares = shares;
+    }
+
+    // This needs to be called once per validator    
     function depositToEth2(
         bytes calldata pubkey,
         bytes calldata withdrawal_credentials,
@@ -663,6 +670,6 @@ contract SharedDeposit is Pausable, ReentrancyGuard, Address {
             "Eth2Staker:withdrawAdminFee: More than adminFeeTotal cannot be withdrawn"
         );
         adminFeeTotal = adminFeeTotal.sub(amount);
-        sender.sendValue(amount);
+        Address.sendValue(sender, amount);
     }
 }
