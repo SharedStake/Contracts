@@ -530,7 +530,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
                     adminFee.mul(1e18).div(costPerValidator)
                 )
             );
-        if (disableWithdrawRefund == true) {
+        if (disableWithdrawRefund) {
             valBeforeAdmin = amount;
         }
         uint256 newShareTotal = curValidatorShares.sub(amount);
