@@ -507,7 +507,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
 
     function deposit() public payable nonReentrant whenNotPaused {
         // input is whole, not / 1e18 , i.e. in 1 = 1 eth send when from etherscan
-        uint256 value = uint256(msg.value);
+        uint256 value = msg.value;
 
         uint256 myAdminFee =
             adminFee.mul(value).mul(1e18).div(costPerValidator).div(1e18);
