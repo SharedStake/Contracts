@@ -412,7 +412,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeMath for uint256;
     /* ========== STATE VARIABLES ========== */
-    address public mainnetDepositContractAddress =
+    address public constant mainnetDepositContractAddress =
         0x00000000219ab540356cBB839Cbe05303d7705Fa;
 
     IDepositContract depositContract;
