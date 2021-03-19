@@ -669,11 +669,6 @@ contract StakingRewards is
         onlyRewardsDistribution
         updateReward(address(0))
     {
-        // handle the transfer of reward tokens via `transferFrom` to reduce the number
-        // of transactions required and ensure correctness of the reward amount
-
-        rewardsToken.safeTransferFrom(rewardHolder, address(this), reward);
-
         if (block.timestamp >= periodFinish) {
             rewardRate = reward.div(rewardsDuration);
         } else {
@@ -684,7 +679,14 @@ contract StakingRewards is
 
         lastUpdateTime = block.timestamp;
         periodFinish = block.timestamp.add(rewardsDuration);
+
+        // handle the transfer of reward tokens via `transferFrom` to reduce the number
+        // of transactions required and ensure correctness of the reward amount
+
+        rewardsToken.safeTransferFrom(rewardHolder, address(this), reward);
+
         emit RewardAdded(reward);
+
     }
 
     // Added to support recovering LP Rewards from other systems such as BAL to be distributed to holders
