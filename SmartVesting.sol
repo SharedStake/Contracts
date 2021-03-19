@@ -179,7 +179,7 @@ abstract contract SingleTokenVestingNonRevocable is Ownable {
 */
 
 contract SmartVesting is SingleTokenVestingNonRevocable, Executor, ReentrancyGuard {
-    address internal _governor;
+    address internal immutable _governor;
     mapping(address => bool) internal _transferAllowed;
 
     constructor(
