@@ -1,6 +1,6 @@
 pragma solidity ^0.7.5;
 
-import {Address} from "@openzeppelin/contracts/utils/Address.sol"
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 /**
  * @dev Wrappers over Solidity's arithmetic operations with added overflow
@@ -420,10 +420,19 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
     uint256 public adminFee;
     uint256 public numValidators;
     uint256 public costPerValidator;
-    uint256 public curValidatorShares;
-    uint256 public validatorsCreated;
-    uint256 public adminFeeTotal;
-    bool public disableWithdrawRefund;
+
+    // The validator shares created by this shared stake contract. 1 share costs >= 1 eth
+    uint256 public curValidatorShares; //initialized to 0
+
+    // The number of times the deposit to eth2 contract has been called to create validators
+    uint256 public validatorsCreated; //initialized to 0
+
+    // Total accrued admin fee
+    uint256 public adminFeeTotal; //initialized to 0
+
+    // Flash loan tokenomic protection in case of changes in admin fee with future lots
+    bool public disableWithdrawRefund; //initialized to false
+
     // Its hard to exactly hit the max deposit amount with small shares. this allows a small bit of overflow room
     // Eth in the buffer cannot be withdrawn by an admin, only by burning the underlying token via a user withdraw
     uint256 public buffer;
@@ -442,11 +451,6 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
 
         // Eth in the buffer cannot be withdrawn by an admin, only by burning the underlying token
         buffer = uint256(10).mul(1e18); // roughly equal to 10 eth.
-
-        curValidatorShares = 0; // The validator shares created by this shared stake contract. 1 share costs >= 1 eth
-        validatorsCreated = 0; // The number of times the deposit to eth2 contract has been called to create validators
-        adminFeeTotal = 0; // Total accrued admin fee
-        disableWithdrawRefund = false; // Flash loan tokenomic protection in case of changes in admin fee with future lots
 
         BETHTokenAddress = _BETHTokenAddress;
         BETHToken = IBETH(BETHTokenAddress);
