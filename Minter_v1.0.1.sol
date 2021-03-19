@@ -430,12 +430,13 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
     // Total accrued admin fee
     uint256 public adminFeeTotal; //initialized to 0
 
-    // Flash loan tokenomic protection in case of changes in admin fee with future lots
-    bool public disableWithdrawRefund; //initialized to false
-
     // Its hard to exactly hit the max deposit amount with small shares. this allows a small bit of overflow room
     // Eth in the buffer cannot be withdrawn by an admin, only by burning the underlying token via a user withdraw
     uint256 public buffer;
+
+    // Flash loan tokenomic protection in case of changes in admin fee with future lots
+    bool public disableWithdrawRefund; //initialized to false
+
     address public BETHTokenAddress;
     IBETH BETHToken;
 
