@@ -564,11 +564,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard, Address {
             newShareTotal <= buffer.add(maxValidatorShares()),
             "Eth2Staker:withdraw:Amount too large, not enough validators supplied"
         );
-
-        require(
-            newShareTotal >= 0,
-            "Eth2Staker:withdraw:Amount too small, not enough validators left"
-        );
+        
         require(
             address(this).balance > amount,
             "Eth2Staker:withdraw:Not enough balance in contract"
@@ -658,10 +654,6 @@ contract SharedDeposit is Pausable, ReentrancyGuard, Address {
     }
 
     function withdrawAdminFee(uint256 amount) external onlyOwner nonReentrant {
-        require(
-            validatorsCreated >= 0,
-            "Eth2Staker:withdrawAdminFee: No validators created. Admins cannot withdraw without creation"
-        );
         address payable sender = msg.sender;
         if (amount == 0) {
             amount = adminFeeTotal;
