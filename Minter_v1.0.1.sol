@@ -415,7 +415,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
     address public constant mainnetDepositContractAddress =
         0x00000000219ab540356cBB839Cbe05303d7705Fa;
 
-    IDepositContract depositContract;
+    IDepositContract private depositContract;
 
     uint256 public adminFee;
     uint256 public numValidators;
@@ -438,7 +438,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
     bool public disableWithdrawRefund; //initialized to false
 
     address public BETHTokenAddress;
-    IBETH BETHToken;
+    IBETH private BETHToken;
 
     constructor(
         uint256 _numValidators,
