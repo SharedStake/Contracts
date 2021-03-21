@@ -537,7 +537,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
         uint256 value = msg.value;
 
         uint256 myAdminFee =
-            adminFee.mul(value).mul(1e18).div(costPerValidator).div(1e18);
+            adminFee.mul(value).mul(1e18).div(32).div(1e18);
         uint256 valMinusAdmin = value.sub(myAdminFee);
         uint256 newShareTotal = curValidatorShares.add(valMinusAdmin);
 
@@ -586,13 +586,13 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
     // migration function to accept old monies and copy over state
     // users should not use this as it just donates the money without minting veth or tracking donations
     function donate(uint256 shares) external payable nonReentrant {
-        this.migrateShares(shares);
+
     }
 
     // OWNER ONLY FUNCTIONS
 
     // Used to migrate state over to new contract
-    function migrateShares(uint256 shares) external payable onlyOwner nonReentrant {
+    function migrateShares(uint256 shares) external onlyOwner nonReentrant {
         curValidatorShares = shares;
     }
 
