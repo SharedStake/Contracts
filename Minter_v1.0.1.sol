@@ -498,7 +498,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
         return validatorLimitReached && balanceEnough;
     }
 
-    function maxValidatorShares() external view returns (uint256) {
+    function maxValidatorShares() public view returns (uint256) {
         return uint256(32).mul(1e18).mul(numValidators);
     }
 
