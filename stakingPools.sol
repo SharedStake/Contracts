@@ -814,6 +814,8 @@ contract Ownable {
 }
 
 contract StakingRewardsFactory is Ownable {
+    using SafeERC20 for IERC20;
+
     // immutables
     address public rewardsToken;
     uint256 public stakingRewardsGenesis;
@@ -883,7 +885,7 @@ contract StakingRewardsFactory is Ownable {
     // Fallback function to return money to reward distributer via pool deployer
     // In case of issues or incorrect calls or errors
     function refund(uint256 amount, address refundAddress) public onlyOwner {
-        require(rewardsToken.balanceOf(address(this)) >= amount, "StakingRewardsFactory::refund: Not enough tokens");
+        require(IERC20(rewardsToken).balanceOf(address(this)) >= amount, "StakingRewardsFactory::refund: Not enough tokens");
         IERC20(rewardsToken).safeTransfer(refundAddress, amount);
     }
 
