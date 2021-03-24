@@ -883,10 +883,8 @@ contract StakingRewardsFactory is Ownable {
     // Fallback function to return money to reward distributer via pool deployer
     // In case of issues or incorrect calls or errors
     function refund(uint256 amount, address refundAddress) public onlyOwner {
-        require(
-            IERC20(rewardsToken).safeTransfer(refundAddress, amount),
-            "StakingRewardsFactory::notifyRewardAmount: transfer failed"
-        );
+        require(rewardsToken.balanceOf(address(this)) > amount, "StakingRewardsFactory::refund: Not enough tokens");
+        IERC20(rewardsToken).safeTransfer(refundAddress, amount);
     }
 
     ///// permissionless functions
