@@ -1,6 +1,6 @@
 pragma solidity ^0.7.0;
 
-import {Ownable} from "https://raw.githubusercontent.com/OpenZeppelin/openzeppelin-contracts/master/contracts/access/Ownable.sol";
+import {Ownable} from "https://raw.githubusercontent.com/OpenZeppelin/openzeppelin-contracts/release-v3.4-solc-0.7/contracts/access/Ownable.sol";
 
 /**
  * @title Pausable
