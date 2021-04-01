@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.7.5;
+pragma solidity ^0.6.9;
 
 interface IvETH2 {
     function setMinter(address minter_) external;
