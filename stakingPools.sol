@@ -669,11 +669,6 @@ contract StakingRewards is
         onlyRewardsDistribution
         updateReward(address(0))
     {
-        // handle the transfer of reward tokens via `transferFrom` to reduce the number
-        // of transactions required and ensure correctness of the reward amount
-
-        rewardsToken.safeTransferFrom(rewardHolder, address(this), reward);
-
         if (block.timestamp >= periodFinish) {
             rewardRate = reward.div(rewardsDuration);
         } else {
@@ -684,7 +679,14 @@ contract StakingRewards is
 
         lastUpdateTime = block.timestamp;
         periodFinish = block.timestamp.add(rewardsDuration);
+
+        // handle the transfer of reward tokens via `transferFrom` to reduce the number
+        // of transactions required and ensure correctness of the reward amount
+
+        rewardsToken.safeTransferFrom(rewardHolder, address(this), reward);
+
         emit RewardAdded(reward);
+
     }
 
     // Added to support recovering LP Rewards from other systems such as BAL to be distributed to holders
@@ -812,6 +814,8 @@ contract Ownable {
 }
 
 contract StakingRewardsFactory is Ownable {
+    using SafeERC20 for IERC20;
+
     // immutables
     address public rewardsToken;
     uint256 public stakingRewardsGenesis;
@@ -881,10 +885,8 @@ contract StakingRewardsFactory is Ownable {
     // Fallback function to return money to reward distributer via pool deployer
     // In case of issues or incorrect calls or errors
     function refund(uint256 amount, address refundAddress) public onlyOwner {
-        require(
-            IERC20(rewardsToken).transfer(refundAddress, amount),
-            "StakingRewardsFactory::notifyRewardAmount: transfer failed"
-        );
+        require(IERC20(rewardsToken).balanceOf(address(this)) >= amount, "StakingRewardsFactory::refund: Not enough tokens");
+        IERC20(rewardsToken).safeTransfer(refundAddress, amount);
     }
 
     ///// permissionless functions

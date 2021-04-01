@@ -1,4 +1,30 @@
-pragma solidity ^0.7.5;
+pragma solidity 0.7.5;
+
+library Address {
+    /**
+     * @dev Replacement for Solidity's `transfer`: sends `amount` wei to
+     * `recipient`, forwarding all available gas and reverting on errors.
+     *
+     * https://eips.ethereum.org/EIPS/eip-1884[EIP1884] increases the gas cost
+     * of certain opcodes, possibly making contracts go over the 2300 gas limit
+     * imposed by `transfer`, making them unable to receive funds via
+     * `transfer`. {sendValue} removes this limitation.
+     *
+     * https://diligence.consensys.net/posts/2019/09/stop-using-soliditys-transfer-now/[Learn more].
+     *
+     * IMPORTANT: because control is transferred to `recipient`, care must be
+     * taken to not create reentrancy vulnerabilities. Consider using
+     * {ReentrancyGuard} or the
+     * https://solidity.readthedocs.io/en/v0.5.11/security-considerations.html#use-the-checks-effects-interactions-pattern[checks-effects-interactions pattern].
+     */
+    function sendValue(address payable recipient, uint256 amount) internal {
+        require(address(this).balance >= amount, "Address: insufficient balance");
+
+        // solhint-disable-next-line avoid-low-level-calls, avoid-call-value
+        (bool success, ) = recipient.call{ value: amount }("");
+        require(success, "Address: unable to send value, recipient may have reverted");
+    }
+}
 
 /**
  * @dev Wrappers over Solidity's arithmetic operations with added overflow
@@ -410,23 +436,33 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeMath for uint256;
     /* ========== STATE VARIABLES ========== */
-    address public mainnetDepositContractAddress =
+    address public constant mainnetDepositContractAddress =
         0x00000000219ab540356cBB839Cbe05303d7705Fa;
 
-    IDepositContract depositContract;
+    IDepositContract private depositContract;
 
     uint256 public adminFee;
     uint256 public numValidators;
     uint256 public costPerValidator;
-    uint256 public curValidatorShares;
-    uint256 public validatorsCreated;
-    uint256 public adminFeeTotal;
-    bool public disableWithdrawRefund;
+
+    // The validator shares created by this shared stake contract. 1 share costs >= 1 eth
+    uint256 public curValidatorShares; //initialized to 0
+
+    // The number of times the deposit to eth2 contract has been called to create validators
+    uint256 public validatorsCreated; //initialized to 0
+
+    // Total accrued admin fee
+    uint256 public adminFeeTotal; //initialized to 0
+
     // Its hard to exactly hit the max deposit amount with small shares. this allows a small bit of overflow room
     // Eth in the buffer cannot be withdrawn by an admin, only by burning the underlying token via a user withdraw
     uint256 public buffer;
+
+    // Flash loan tokenomic protection in case of changes in admin fee with future lots
+    bool public disableWithdrawRefund; //initialized to false
+
     address public BETHTokenAddress;
-    IBETH BETHToken;
+    IBETH private BETHToken;
 
     constructor(
         uint256 _numValidators,
@@ -436,15 +472,10 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
         depositContract = IDepositContract(mainnetDepositContractAddress);
 
         adminFee = _adminFee; // Admin and infra fees
-        numValidators = _numValidators; // The number of validators to create in this lot. Enough ETH for this many are needed before transfer to eth2
+        numValidators = _numValidators; // The number of validators to create in this lot. Sets a max limit on deposits
 
         // Eth in the buffer cannot be withdrawn by an admin, only by burning the underlying token
         buffer = uint256(10).mul(1e18); // roughly equal to 10 eth.
-
-        curValidatorShares = 0; // The validator shares created by this shared stake contract. 1 share costs >= 1 eth
-        validatorsCreated = 0; // The number of times the deposit to eth2 contract has been called to create validators
-        adminFeeTotal = 0; // Total accrued admin fee
-        disableWithdrawRefund = false; // Flash loan tokenomic protection in case of changes in admin fee with future lots
 
         BETHTokenAddress = _BETHTokenAddress;
         BETHToken = IBETH(BETHTokenAddress);
@@ -489,7 +520,8 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
     Shares minted = Z
     Principal deposit input = P
     AdminFee = a
-    AdminFee as percent in 1e18 = a% =  a / 32
+    costPerValidator = 32 + a
+    AdminFee as percent in 1e18 = a% =  (a / costPerValidator) * 1e18
     AdminFee on tx in 1e18 = (P * a% / 1e18)
 
     on deposit:
@@ -497,14 +529,15 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
 
     on withdraw with admin fee refund:
     P = Z / (1 - a%)
+    P = Z - Z*a%
     */
 
-    function deposit() public payable nonReentrant whenNotPaused {
+    function deposit() external payable nonReentrant whenNotPaused {
         // input is whole, not / 1e18 , i.e. in 1 = 1 eth send when from etherscan
-        uint256 value = uint256(msg.value);
+        uint256 value = msg.value;
 
         uint256 myAdminFee =
-            adminFee.mul(value).mul(1e18).div(costPerValidator).div(1e18);
+            value.mul(adminFee).div(costPerValidator);
         uint256 valMinusAdmin = value.sub(myAdminFee);
         uint256 newShareTotal = curValidatorShares.add(valMinusAdmin);
 
@@ -517,30 +550,22 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
         BETHToken.mint(msg.sender, valMinusAdmin);
     }
 
-    function withdraw(uint256 amount) public nonReentrant whenNotPaused {
-        uint256 valBeforeAdmin =
-            amount.mul(1e18).div(
+    function withdraw(uint256 amount) external nonReentrant whenNotPaused {
+        uint256 valBeforeAdmin;
+        if (disableWithdrawRefund) {
+            valBeforeAdmin = amount;
+        } else {
+            valBeforeAdmin = amount.mul(1e18).div(
                 uint256(1).mul(1e18).sub(
-                    adminFee.mul(1e18).div(costPerValidator)
+                   adminFee.mul(1e18).div(costPerValidator)
                 )
             );
-        if (disableWithdrawRefund == true) {
-            valBeforeAdmin = amount;
         }
         uint256 newShareTotal = curValidatorShares.sub(amount);
-
-        require(
-            newShareTotal <= buffer.add(maxValidatorShares()),
-            "Eth2Staker:withdraw:Amount too large, not enough validators supplied"
-        );
-
-        require(
-            newShareTotal >= 0,
-            "Eth2Staker:withdraw:Amount too small, not enough validators left"
-        );
+        
         require(
             address(this).balance > amount,
-            "Eth2Staker:withdraw:not enough balancce in contract"
+            "Eth2Staker:withdraw:Not enough balance in contract"
         );
         require(
             BETHToken.balanceOf(msg.sender) >= amount,
@@ -551,18 +576,23 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
         adminFeeTotal = adminFeeTotal.sub(valBeforeAdmin.sub(amount));
         BETHToken.burn(msg.sender, amount);
         address payable sender = msg.sender;
-        sender.transfer(valBeforeAdmin);
+        Address.sendValue(sender, valBeforeAdmin);
     }
 
     // migration function to accept old monies and copy over state
     // users should not use this as it just donates the money without minting veth or tracking donations
     function donate(uint256 shares) external payable nonReentrant {
-        curValidatorShares = shares;
+
     }
 
     // OWNER ONLY FUNCTIONS
 
-    // This needs to be called once per validator
+    // Used to migrate state over to new contract
+    function migrateShares(uint256 shares) external onlyOwner nonReentrant {
+        curValidatorShares = shares;
+    }
+
+    // This needs to be called once per validator    
     function depositToEth2(
         bytes calldata pubkey,
         bytes calldata withdrawal_credentials,
@@ -575,16 +605,18 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
             "Eth2Staker:depositToEth2: Not enough balance"
         ); //need at least 32 ETH
 
+        validatorsCreated = validatorsCreated.add(1);
+
         depositContract.deposit{value: amount}(
             pubkey,
             withdrawal_credentials,
             signature,
             deposit_data_root
         );
-        validatorsCreated = validatorsCreated.add(1);
     }
 
     function setNumValidators(uint256 _numValidators) external onlyOwner {
+        require(_numValidators != 0, "Minimum 1 validator");
         numValidators = _numValidators;
     }
 
@@ -608,6 +640,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
         onlyOwner
         nonReentrant
     {
+        require(minter_ != address(0), "Minter cannot be zero address");
         BETHToken.setMinter(minter_);
 
         uint256 amount = address(this).balance;
@@ -623,10 +656,6 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
     }
 
     function withdrawAdminFee(uint256 amount) external onlyOwner nonReentrant {
-        require(
-            validatorsCreated >= 0,
-            "Eth2Staker:withdrawAdminFee: No validators created. Admins cannot withdraw without creation"
-        );
         address payable sender = msg.sender;
         if (amount == 0) {
             amount = adminFeeTotal;
@@ -635,7 +664,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
             amount <= adminFeeTotal,
             "Eth2Staker:withdrawAdminFee: More than adminFeeTotal cannot be withdrawn"
         );
-        sender.transfer(amount);
         adminFeeTotal = adminFeeTotal.sub(amount);
+        Address.sendValue(sender, amount);
     }
 }

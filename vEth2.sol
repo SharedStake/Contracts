@@ -1,6 +1,8 @@
 pragma solidity ^0.7.5;
 pragma experimental ABIEncoderV2;
 
+// SPDX-License-Identifier: MIT
+
 // From https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/math/Math.sol
 // Subject to the MIT license.
 
