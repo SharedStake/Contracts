@@ -1,8 +1,6 @@
-// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.7.0;
 
-pragma solidity ^0.6.9;
-
-import {Ownable} from "https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/access/Ownable.sol";
+import {Ownable} from "https://raw.githubusercontent.com/OpenZeppelin/openzeppelin-contracts/master/contracts/access/Ownable.sol";
 
 /**
  * @title Pausable
