@@ -1,15 +1,30 @@
-/**
- *Submitted for verification at Etherscan.io on 2020-12-10
-*/
-
-/**
- *Submitted for verification at Etherscan.io on 2020-11-18
-*/
-
 pragma solidity ^0.7.5;
 
 /**
- *Submitted for verification at Etherscan.io on 2020-11-18
+ *
+ *
+
+ _____ _                        _ _____ _        _        
+/  ___| |                      | /  ___| |      | |       
+\ `--.| |__   __ _ _ __ ___  __| \ `--.| |_ __ _| | _____ 
+ `--. \ '_ \ / _` | '__/ _ \/ _` |`--. \ __/ _` | |/ / _ \
+/\__/ / | | | (_| | | |  __/ (_| /\__/ / || (_| |   <  __/
+\____/|_| |_|\__,_|_|  \___|\__,_\____/ \__\__,_|_|\_\___|
+                                                          
+                                                          
+
+ * SharedDeposit v1.1.5RC1 (SIP 15 Patch)
+ *
+ * What's new: 
+ *
+ * Configurable withdrawal fee (in basis points) on withdrawl 
+ * Fixes insufficient funds for admin fee withdrawal bug
+ * Calculates accured withdrawal fees (in ETH)
+ * Withdrawal fee withdrawal function for admin
+ *
+ * Known bugs: 
+ * If the fee amount is too small for the withdrawal fee to equal least 1 wei, the effective withdrawal fee will be 0
+ * eg 3bp fee on 10 wei tx ==> can't charge 0.3 wei
 */
 
 
@@ -577,6 +592,12 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
     
     function setWithdrawalFee(uint256 amount) external onlyOwner {
         withdrawalFee = amount; 
+    }
+
+    function withdrawWithdrawalFees() external onlyOwner nonReentrant {
+        require(withdrawalFeeTotal > 9, "ETH2Staker::withdrawWithdrawalFees: No fees accured");
+        sender.transfer(withdrawalFeeTotal);
+        withdrawalFeeTotal = 0;
     }
 
     function withdrawAdminFee(uint amount) external onlyOwner nonReentrant {
