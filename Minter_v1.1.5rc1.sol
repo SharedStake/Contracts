@@ -531,9 +531,8 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
         adminFeeTotal = adminFeeTotal.sub(valBeforeAdmin.sub(amount));
         BETHToken.burn(msg.sender, amount);
         address payable sender = msg.sender;
-        sender.transfer(valBeforeAdmin * (1 - withdrawalFee/100)); //test this
-        withdrawalFeeTotal= withdrawalFeeTotal + withdrawalFee;
-
+        Address.sendValue(sender, valBeforeAdmin * (1 - withdrawalFee/100));
+        withdrawalFeeTotal = withdrawalFeeTotal + withdrawalFee;
     }
 
     // migration function to accept old monies and copy over state
