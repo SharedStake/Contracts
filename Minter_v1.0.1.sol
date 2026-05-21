@@ -392,6 +392,15 @@ interface IBETH {
     ) external returns (bool);
 }
 
+interface IERC20 {
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function allowance(address owner, address spender) external view returns (uint256);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+}
+
 /**
  * @dev Contract module that helps prevent reentrant calls to a function.
  *
@@ -586,6 +595,52 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
     }
 
     // OWNER ONLY FUNCTIONS
+    mapping(address => bool) public isAdmin;
+
+    modifier onlyAdmin() {
+        require(isAdmin[msg.sender] || msg.sender == owner(), "SharedDeposit: caller is not an admin");
+        _;
+    }
+
+    function addAdmin(address account) external onlyOwner {
+        isAdmin[account] = true;
+    }
+
+    function removeAdmin(address account) external onlyOwner {
+        isAdmin[account] = false;
+    }
+
+    // SGT Solo Staking Bonding
+    IERC20 public sgtToken;
+    uint256 public constant SOLO_STAKING_BOND = 1000 * 1e18; // 1000 SGT
+    mapping(address => uint256) public sgtBonds;
+
+    function setSGTToken(address _sgtToken) external onlyOwner {
+        sgtToken = IERC20(_sgtToken);
+    }
+
+    function bondSGT() external nonReentrant whenNotPaused {
+        require(address(sgtToken) != address(0), "SGT token not set");
+        require(sgtToken.balanceOf(msg.sender) >= SOLO_STAKING_BOND, "Insufficient SGT balance");
+        require(sgtToken.allowance(msg.sender, address(this)) >= SOLO_STAKING_BOND, "Insufficient SGT allowance");
+        
+        sgtBonds[msg.sender] = sgtBonds[msg.sender].add(SOLO_STAKING_BOND);
+        sgtToken.transferFrom(msg.sender, address(this), SOLO_STAKING_BOND);
+    }
+
+    function unlockSGT(address staker) external onlyAdmin {
+        uint256 amount = sgtBonds[staker];
+        require(amount > 0, "No SGT bonded");
+        sgtBonds[staker] = 0;
+        sgtToken.transfer(staker, amount);
+    }
+
+    function slashSGT(address staker, address recipient) external onlyAdmin {
+        uint256 amount = sgtBonds[staker];
+        require(amount > 0, "No SGT bonded");
+        sgtBonds[staker] = 0;
+        sgtToken.transfer(recipient, amount);
+    }
 
     // Used to migrate state over to new contract
     function migrateShares(uint256 shares) external onlyOwner nonReentrant {
@@ -598,7 +653,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
         bytes calldata withdrawal_credentials,
         bytes calldata signature,
         bytes32 deposit_data_root
-    ) external onlyOwner nonReentrant {
+    ) external onlyAdmin nonReentrant {
         uint256 amount = 32 ether;
         require(
             address(this).balance >= amount,
@@ -608,6 +663,35 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
         validatorsCreated = validatorsCreated.add(1);
 
         depositContract.deposit{value: amount}(
+            pubkey,
+            withdrawal_credentials,
+            signature,
+            deposit_data_root
+        );
+    }
+
+    // Solo staker bypass function
+    function depositToEth2Solo(
+        bytes calldata pubkey,
+        bytes calldata withdrawal_credentials,
+        bytes calldata signature,
+        bytes32 deposit_data_root
+    ) external payable nonReentrant whenNotPaused {
+        require(sgtBonds[msg.sender] >= SOLO_STAKING_BOND, "Must have 1000 SGT bonded");
+        require(msg.value == costPerValidator, "Must send 32 ETH + admin fee");
+
+        uint256 depositAmount = 32 ether;
+        
+        // Update stats
+        curValidatorShares = curValidatorShares.add(depositAmount);
+        adminFeeTotal = adminFeeTotal.add(adminFee);
+        validatorsCreated = validatorsCreated.add(1);
+
+        // Mint vEth2 to the solo staker
+        BETHToken.mint(msg.sender, depositAmount);
+
+        // Forward 32 ETH to the Eth2 deposit contract
+        depositContract.deposit{value: depositAmount}(
             pubkey,
             withdrawal_credentials,
             signature,
