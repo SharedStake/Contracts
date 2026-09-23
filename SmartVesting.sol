@@ -255,7 +255,7 @@ contract SmartVesting is SingleTokenVestingNonRevocable, Executor, ReentrancyGua
         uint256 claimableTokenAmount = tokenToClaim.balanceOf(address(this));
         require(claimableTokenAmount > 0, "smart-timelock/no-token-balance-to-claim");
 
-        tokenToClaim.transfer(beneficiary(), claimableTokenAmount);
+        SafeERC20(tokenToClaim).safeTransfer(beneficiary(), claimableTokenAmount);
 
         uint256 postAmount = token().balanceOf(address(this));
         require(postAmount >= preAmount, "smart-timelock/locked-balance-check");

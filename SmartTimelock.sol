@@ -169,7 +169,7 @@ contract SmartTimelock is TokenTimelock, Executor, ReentrancyGuard {
             "smart-timelock/no-token-balance-to-claim"
         );
 
-        tokenToClaim.transfer(beneficiary(), claimableTokenAmount);
+        SafeERC20(tokenToClaim).safeTransfer(beneficiary(), claimableTokenAmount);
 
         uint256 postAmount = token().balanceOf(address(this));
         require(postAmount >= preAmount, "smart-timelock/locked-balance-check");

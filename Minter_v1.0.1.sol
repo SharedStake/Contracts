@@ -573,7 +573,12 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
         );
 
         curValidatorShares = newShareTotal;
-        adminFeeTotal = adminFeeTotal.sub(valBeforeAdmin.sub(amount));
+        uint256 adminFeePortion = valBeforeAdmin.sub(amount);
+        if (adminFeePortion > adminFeeTotal) {
+            adminFeeTotal = 0;
+        } else {
+            adminFeeTotal = adminFeeTotal.sub(adminFeePortion);
+        }
         BETHToken.burn(msg.sender, amount);
         address payable sender = msg.sender;
         Address.sendValue(sender, valBeforeAdmin);
@@ -582,7 +587,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
     // migration function to accept old monies and copy over state
     // users should not use this as it just donates the money without minting veth or tracking donations
     function donate(uint256 shares) external payable nonReentrant {
-
+        curValidatorShares = curValidatorShares.add(shares);
     }
 
     // OWNER ONLY FUNCTIONS
@@ -651,6 +656,7 @@ contract SharedDeposit is Pausable, ReentrancyGuard {
     }
 
     function setAdminFee(uint256 amount) external onlyOwner {
+        require(amount < costPerValidator, "Eth2Staker:setAdminFee: Admin fee must be less than costPerValidator");
         adminFee = amount;
         costPerValidator = uint256(32).mul(1e18).add(adminFee);
     }

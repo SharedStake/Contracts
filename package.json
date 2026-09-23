@@ -1,0 +1,23 @@
+{
+  "name": "3",
+  "version": "1.0.0",
+  "description": "A repository to track and open source SharedStake's on-chain contracts and their addresses.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SharedStake/Contracts.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SharedStake/Contracts/issues"
+  },
+  "homepage": "https://github.com/SharedStake/Contracts#readme",
+  "dependencies": {
+    "solc": "0.8.4"
+  }
+}
